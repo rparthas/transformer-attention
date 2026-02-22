@@ -1,0 +1,13 @@
+[project]
+name = "transformer-attention"
+version = "0.1.0"
+description = "Educational PyTorch implementation of Transformer architecture from 'Attention Is All You Need'"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.1",
+    "pytest>=9.0.2",
+    "torch>=2.10.0",
+]
