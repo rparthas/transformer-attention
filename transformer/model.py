@@ -8,9 +8,11 @@ This module contains:
 """
 
 import math
+
 import torch
 import torch.nn as nn
-from .layers import EncoderLayer, DecoderLayer, create_look_ahead_mask
+
+from .layers import DecoderLayer, EncoderLayer
 from .positional import PositionalEncoding
 
 
@@ -43,7 +45,7 @@ class Encoder(nn.Module):
         d_ff=512,
         max_len=1000,
         dropout=0.1,
-        pad_token_id=0
+        pad_token_id=0,
     ):
         super().__init__()
         self.d_model = d_model
@@ -59,10 +61,9 @@ class Encoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         # Stack of encoder layers
-        self.layers = nn.ModuleList([
-            EncoderLayer(d_model, num_heads, d_ff, dropout)
-            for _ in range(num_layers)
-        ])
+        self.layers = nn.ModuleList(
+            [EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)]
+        )
 
     def forward(self, input_ids, mask=None, return_attention=False):
         """
@@ -144,7 +145,7 @@ class Decoder(nn.Module):
         d_ff=512,
         max_len=1000,
         dropout=0.1,
-        pad_token_id=0
+        pad_token_id=0,
     ):
         super().__init__()
         self.d_model = d_model
@@ -160,16 +161,21 @@ class Decoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         # Stack of decoder layers
-        self.layers = nn.ModuleList([
-            DecoderLayer(d_model, num_heads, d_ff, dropout)
-            for _ in range(num_layers)
-        ])
+        self.layers = nn.ModuleList(
+            [DecoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)]
+        )
 
         # Output projection
         self.fc_out = nn.Linear(d_model, vocab_size)
 
-    def forward(self, tgt_ids, encoder_output, src_mask=None, tgt_mask=None,
-                return_attention=False):
+    def forward(
+        self,
+        tgt_ids,
+        encoder_output,
+        src_mask=None,
+        tgt_mask=None,
+        return_attention=False,
+    ):
         """
         Forward pass through decoder.
 
@@ -231,9 +237,11 @@ class Decoder(nn.Module):
         tgt_padding_mask = (tgt_ids != self.pad_token_id).unsqueeze(1).unsqueeze(2)
 
         # Look-ahead mask: (1, 1, tgt_len, tgt_len)
-        look_ahead_mask = torch.tril(
-            torch.ones(tgt_len, tgt_len, device=tgt_ids.device)
-        ).unsqueeze(0).unsqueeze(0)
+        look_ahead_mask = (
+            torch.tril(torch.ones(tgt_len, tgt_len, device=tgt_ids.device))
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
 
         # Combine (both must be True for attention to be allowed)
         tgt_mask = tgt_padding_mask & look_ahead_mask.bool()
@@ -271,7 +279,7 @@ class Transformer(nn.Module):
         max_len=1000,
         dropout=0.1,
         src_pad_idx=0,
-        tgt_pad_idx=0
+        tgt_pad_idx=0,
     ):
         super().__init__()
 
@@ -288,7 +296,7 @@ class Transformer(nn.Module):
             d_ff=d_ff,
             max_len=max_len,
             dropout=dropout,
-            pad_token_id=src_pad_idx
+            pad_token_id=src_pad_idx,
         )
 
         # Decoder
@@ -300,7 +308,7 @@ class Transformer(nn.Module):
             d_ff=d_ff,
             max_len=max_len,
             dropout=dropout,
-            pad_token_id=tgt_pad_idx
+            pad_token_id=tgt_pad_idx,
         )
 
         # Initialize weights
@@ -325,7 +333,9 @@ class Transformer(nn.Module):
 
         # Encode source
         if return_attention:
-            encoder_output, enc_attn = self.encoder(src, src_mask, return_attention=True)
+            encoder_output, enc_attn = self.encoder(
+                src, src_mask, return_attention=True
+            )
         else:
             encoder_output = self.encoder(src, src_mask)
 
@@ -335,9 +345,9 @@ class Transformer(nn.Module):
                 tgt, encoder_output, src_mask, tgt_mask, return_attention=True
             )
             attention_weights = {
-                'encoder_self_attention': enc_attn,
-                'decoder_self_attention': dec_self_attn,
-                'decoder_cross_attention': dec_cross_attn
+                "encoder_self_attention": enc_attn,
+                "decoder_self_attention": dec_self_attn,
+                "decoder_cross_attention": dec_cross_attn,
             }
             return logits, attention_weights
         else:
@@ -358,9 +368,11 @@ class Transformer(nn.Module):
         tgt_pad_mask = (tgt != self.tgt_pad_idx).unsqueeze(1).unsqueeze(2)
 
         # Look-ahead mask
-        tgt_sub_mask = torch.tril(
-            torch.ones(tgt_len, tgt_len, device=tgt.device)
-        ).unsqueeze(0).unsqueeze(0)
+        tgt_sub_mask = (
+            torch.tril(torch.ones(tgt_len, tgt_len, device=tgt.device))
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
 
         # Combine
         tgt_mask = tgt_pad_mask & tgt_sub_mask.bool()
@@ -372,13 +384,15 @@ class Transformer(nn.Module):
             src_mask = self.create_src_mask(src)
         return self.encoder(src, src_mask, return_attention=return_attention)
 
-    def decode(self, tgt, encoder_output, src_mask=None, tgt_mask=None,
-               return_attention=False):
+    def decode(
+        self, tgt, encoder_output, src_mask=None, tgt_mask=None, return_attention=False
+    ):
         """Decode target sequence given encoder output."""
         if tgt_mask is None:
             tgt_mask = self.create_tgt_mask(tgt)
-        return self.decoder(tgt, encoder_output, src_mask, tgt_mask,
-                           return_attention=return_attention)
+        return self.decoder(
+            tgt, encoder_output, src_mask, tgt_mask, return_attention=return_attention
+        )
 
     def _init_weights(self):
         """Initialize parameters using Xavier initialization."""
